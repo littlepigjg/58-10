@@ -557,3 +557,84 @@ input[type="color"] {
 ::-webkit-scrollbar-thumb:hover {
     background: #a1a1a1;
 }
+
+.global-settings {
+    border-top: 1px solid #e5e7eb;
+    padding: 12px 16px;
+    background: #fafbfc;
+    flex-shrink: 0;
+    max-height: 340px;
+    overflow-y: auto;
+}
+
+.global-settings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #667eea;
+}
+
+.global-settings-header h3 {
+    font-size: 14px;
+    color: #374151;
+    font-weight: 600;
+    margin: 0;
+}
+
+.global-settings-content {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.global-settings .form-group {
+    gap: 3px;
+}
+
+.global-settings .form-group label {
+    font-size: 11px;
+}
+
+.global-settings .form-group input[type="number"] {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.global-settings .form-group input[type="color"] {
+    width: 32px;
+    height: 26px;
+    padding: 1px;
+}
+
+.global-settings .form-row {
+    gap: 8px;
+}
+
+.global-settings .btn-secondary {
+    background: #e5e7eb;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    padding: 3px 10px;
+    font-size: 11px;
+}
+
+.global-settings .btn-secondary:hover {
+    background: #d1d5db;
+}
+
+.editor-canvas {
+    --primary-color: #667eea;
+    --text-color: #1f2937;
+    --secondary-text-color: #4b5563;
+    --default-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    --heading-font-size: 28px;
+    --body-font-size: 14px;
+    --default-padding-top: 0px;
+    --default-padding-right: 20px;
+    --default-padding-bottom: 0px;
+    --default-padding-left: 20px;
+    --divider-color: #e5e7eb;
+    --link-color: #667eea;
+}

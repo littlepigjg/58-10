@@ -12,6 +12,7 @@ const App = (() => {
         try {
             const data = {
                 blocks: state.blocks,
+                globalConfig: state.globalConfig,
                 savedAt: Date.now()
             };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -28,6 +29,7 @@ const App = (() => {
             if (!data || !Array.isArray(data.blocks)) return null;
             return {
                 blocks: data.blocks,
+                globalConfig: data.globalConfig || null,
                 selectedId: null,
                 selectedColId: null
             };
@@ -46,6 +48,7 @@ const App = (() => {
         if (!initialState) {
             initialState = {
                 blocks: [],
+                globalConfig: null,
                 selectedId: null,
                 selectedColId: null
             };
@@ -53,22 +56,52 @@ const App = (() => {
 
         LayoutManager.init(initialState, {
             onChange: onStateChange,
-            onSelect: onSelectChange
+            onSelect: onSelectChange,
+            onGlobalConfigChange: onGlobalConfigChange
         });
 
         PreviewRenderer.init('#preview-iframe', '#preview-container');
+        EventBus.subscribe('globalConfigChange', function(config) {
+            const state = LayoutManager.getState();
+            PreviewRenderer.render(state.blocks, config);
+        });
 
         renderComponentList();
         bindGlobalEvents();
         renderEditor();
-        PreviewRenderer.render(initialState.blocks);
+        renderGlobalSettings();
+        PreviewRenderer.render(initialState.blocks, LayoutManager.getGlobalConfig());
     }
 
     function onStateChange(state) {
         saveStateToStorage(state);
         renderEditor();
-        PreviewRenderer.render(state.blocks);
+        PreviewRenderer.render(state.blocks, state.globalConfig);
         renderProperties();
+    }
+
+    function onGlobalConfigChange(config) {
+        saveStateToStorage(LayoutManager.getState());
+        updateEditorCssVars(config);
+        PreviewRenderer.render(LayoutManager.getState().blocks, config);
+        renderGlobalSettings();
+        EventBus.publish('globalConfigChange', config);
+    }
+
+    function updateEditorCssVars(config) {
+        const canvas = document.getElementById('editor-canvas');
+        if (!canvas) return;
+        config = config || LayoutManager.getGlobalConfig();
+        var cssVarMap = GlobalStyleMapping.cssVarMap;
+        Object.keys(cssVarMap).forEach(function(key) {
+            if (config[key] !== undefined && config[key] !== null) {
+                var val = config[key];
+                if (typeof val === 'number' && (key.indexOf('FontSize') !== -1 || key.indexOf('Padding') !== -1)) {
+                    val = val + 'px';
+                }
+                canvas.style.setProperty(cssVarMap[key], val);
+            }
+        });
     }
 
     function onSelectChange(blockId, colId) {
@@ -112,11 +145,18 @@ const App = (() => {
         });
 
         document.getElementById('btn-export-html').addEventListener('click', function() {
-            IOManager.exportHtml(LayoutManager.getState().blocks);
+            const state = LayoutManager.getState();
+            IOManager.exportHtml(state.blocks, state.globalConfig);
         });
 
         document.getElementById('btn-export-json').addEventListener('click', function() {
             IOManager.exportJson(LayoutManager.getState());
+        });
+
+        document.getElementById('btn-reset-global').addEventListener('click', function() {
+            if (confirm('确定要重置全局样式为默认值吗？')) {
+                LayoutManager.resetGlobalConfig();
+            }
         });
 
         const fileInput = document.getElementById('file-import');
@@ -127,7 +167,12 @@ const App = (() => {
             const file = e.target.files[0];
             if (!file) return;
             IOManager.importJson(file).then(function(data) {
-                LayoutManager.setState({ blocks: data.blocks, selectedId: null, selectedColId: null });
+                LayoutManager.setState({
+                    blocks: data.blocks,
+                    globalConfig: data.globalConfig || null,
+                    selectedId: null,
+                    selectedColId: null
+                });
             }).catch(function(err) {
                 alert(err.message);
             });
@@ -201,6 +246,18 @@ const App = (() => {
     function renderEditor() {
         const canvas = document.getElementById('editor-canvas');
         const state = LayoutManager.getState();
+        const config = state.globalConfig || LayoutManager.getDefaultGlobalConfig();
+
+        var cssVarMap = GlobalStyleMapping.cssVarMap;
+        Object.keys(cssVarMap).forEach(function(key) {
+            if (config[key] !== undefined && config[key] !== null) {
+                var val = config[key];
+                if (typeof val === 'number' && (key.indexOf('FontSize') !== -1 || key.indexOf('Padding') !== -1)) {
+                    val = val + 'px';
+                }
+                canvas.style.setProperty(cssVarMap[key], val);
+            }
+        });
 
         if (state.blocks.length === 0) {
             canvas.innerHTML = '<div class="empty-hint"><p>👈 从左侧拖拽组件到这里开始编辑</p></div>';
@@ -553,6 +610,102 @@ const App = (() => {
         draggingBlockId = null;
         draggingParentBlockId = null;
         draggingColId = null;
+    }
+
+    function renderGlobalSettings() {
+        const container = document.getElementById('global-settings-content');
+        const config = LayoutManager.getGlobalConfig();
+        let html = '';
+
+        GlobalConfigSchema.forEach(function(field) {
+            if (field.type === 'group') {
+                html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid #e5e7eb;">' +
+                    '<div style="font-size:12px;color:#6b7280;margin-bottom:6px;font-weight:600;">' + field.label + '</div>' +
+                    '<div class="form-row">';
+                field.fields.forEach(function(subField) {
+                    html += renderGlobalFormField(subField, config[subField.key]);
+                });
+                html += '</div></div>';
+            } else {
+                html += renderGlobalFormField(field, config[field.key]);
+            }
+        });
+
+        container.innerHTML = html;
+        bindGlobalSettingsEvents(container);
+    }
+
+    function renderGlobalFormField(field, value) {
+        var inputId = 'global-' + field.key;
+        switch (field.type) {
+            case 'text':
+            case 'number':
+                var step = field.step ? ' step="' + field.step + '"' : '';
+                return '<div class="form-group">' +
+                    '<label for="' + inputId + '">' + field.label + '</label>' +
+                    '<input type="' + field.type + '" id="' + inputId + '" data-global-field="' + field.key + '" value="' + (value !== undefined ? value : '') + '"' + step + '>' +
+                '</div>';
+            case 'select':
+                var options = field.options.map(function(opt) {
+                    return '<option value="' + opt.value + '" ' + (value == opt.value ? 'selected' : '') + '>' + opt.label + '</option>';
+                }).join('');
+                return '<div class="form-group">' +
+                    '<label for="' + inputId + '">' + field.label + '</label>' +
+                    '<select id="' + inputId + '" data-global-field="' + field.key + '">' + options + '</select>' +
+                '</div>';
+            case 'color':
+                return '<div class="form-group">' +
+                    '<label for="' + inputId + '">' + field.label + '</label>' +
+                    '<div style="display:flex;align-items:center;gap:8px;">' +
+                        '<input type="color" id="' + inputId + '" data-global-field="' + field.key + '" value="' + (value || '#000000') + '">' +
+                        '<input type="text" data-global-field-text="' + field.key + '" value="' + (value || '#000000') + '" style="flex:1;padding:6px 10px;border:1px solid #d1d5db;border-radius:4px;font-size:13px;font-family:inherit;">' +
+                    '</div>' +
+                '</div>';
+            default:
+                return '';
+        }
+    }
+
+    function bindGlobalSettingsEvents(container) {
+        container.querySelectorAll('[data-global-field]').forEach(function(input) {
+            var field = input.dataset.globalField;
+
+            input.addEventListener('input', function(e) {
+                var value = e.target.value;
+                if (input.type === 'number') {
+                    value = parseFloat(value) || 0;
+                }
+                LayoutManager.updateGlobalConfig({ [field]: value });
+                var textInput = container.querySelector('[data-global-field-text="' + field + '"]');
+                if (textInput && input.type === 'color') {
+                    textInput.value = value;
+                }
+            });
+
+            if (input.tagName === 'SELECT') {
+                input.addEventListener('change', function(e) {
+                    var value = e.target.value;
+                    if (!isNaN(parseFloat(value)) && isFinite(value)) {
+                        value = parseFloat(value);
+                    }
+                    LayoutManager.updateGlobalConfig({ [field]: value });
+                });
+            }
+        });
+
+        container.querySelectorAll('[data-global-field-text]').forEach(function(input) {
+            var field = input.dataset.globalFieldText;
+            input.addEventListener('input', function(e) {
+                var value = e.target.value;
+                if (/^#[0-9A-Fa-f]{6}$/.test(value) || /^#[0-9A-Fa-f]{3}$/.test(value)) {
+                    LayoutManager.updateGlobalConfig({ [field]: value });
+                    var colorInput = container.querySelector('[data-global-field="' + field + '"]');
+                    if (colorInput) {
+                        colorInput.value = value;
+                    }
+                }
+            });
+        });
     }
 
     function renderProperties() {

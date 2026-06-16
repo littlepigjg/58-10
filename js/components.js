@@ -1,3 +1,103 @@
+const EventBus = (() => {
+    const events = {};
+
+    function subscribe(event, callback) {
+        if (!events[event]) {
+            events[event] = [];
+        }
+        events[event].push(callback);
+        return function() {
+            events[event] = events[event].filter(function(cb) { return cb !== callback; });
+        };
+    }
+
+    function publish(event, data) {
+        if (!events[event]) return;
+        events[event].forEach(function(callback) {
+            try {
+                callback(data);
+            } catch (e) {
+                console.error('EventBus callback error:', e);
+            }
+        });
+    }
+
+    function unsubscribe(event, callback) {
+        if (!events[event]) return;
+        events[event] = events[event].filter(function(cb) { return cb !== callback; });
+    }
+
+    return { subscribe, publish, unsubscribe };
+})();
+
+const GlobalStyleMapping = {
+    cssVarMap: {
+        primaryColor: '--primary-color',
+        textColor: '--text-color',
+        secondaryTextColor: '--secondary-text-color',
+        fontFamily: '--default-font-family',
+        headingFontSize: '--heading-font-size',
+        bodyFontSize: '--body-font-size',
+        defaultPaddingTop: '--default-padding-top',
+        defaultPaddingRight: '--default-padding-right',
+        defaultPaddingBottom: '--default-padding-bottom',
+        defaultPaddingLeft: '--default-padding-left',
+        dividerColor: '--divider-color',
+        linkColor: '--link-color'
+    },
+    componentFields: {
+        heading: ['color', 'fontSize', 'fontFamily', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'],
+        paragraph: ['color', 'fontSize', 'fontFamily', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'],
+        button: ['backgroundColor', 'color', 'fontSize', 'fontFamily'],
+        image: ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'],
+        divider: ['color', 'paddingTop', 'paddingBottom'],
+        columns: ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft']
+    },
+    fieldToCssVar: {
+        heading: {
+            color: '--text-color',
+            fontSize: '--heading-font-size',
+            fontFamily: '--default-font-family',
+            paddingTop: '--default-padding-top',
+            paddingRight: '--default-padding-right',
+            paddingBottom: '--default-padding-bottom',
+            paddingLeft: '--default-padding-left'
+        },
+        paragraph: {
+            color: '--secondary-text-color',
+            fontSize: '--body-font-size',
+            fontFamily: '--default-font-family',
+            paddingTop: '--default-padding-top',
+            paddingRight: '--default-padding-right',
+            paddingBottom: '--default-padding-bottom',
+            paddingLeft: '--default-padding-left'
+        },
+        button: {
+            backgroundColor: '--primary-color',
+            color: null,
+            fontSize: '--body-font-size',
+            fontFamily: '--default-font-family'
+        },
+        image: {
+            paddingTop: '--default-padding-top',
+            paddingRight: '--default-padding-right',
+            paddingBottom: '--default-padding-bottom',
+            paddingLeft: '--default-padding-left'
+        },
+        divider: {
+            color: '--divider-color',
+            paddingTop: '--default-padding-top',
+            paddingBottom: '--default-padding-bottom'
+        },
+        columns: {
+            paddingTop: '--default-padding-top',
+            paddingRight: '--default-padding-right',
+            paddingBottom: '--default-padding-bottom',
+            paddingLeft: '--default-padding-left'
+        }
+    }
+};
+
 const ComponentLibrary = (() => {
 
     const PARAGRAPH_DEFAULTS = {
@@ -260,3 +360,29 @@ const ComponentLibrary = (() => {
         COMPONENTS
     };
 })();
+
+const GlobalConfigSchema = [
+    { key: 'backgroundColor', label: '页面背景色', type: 'color' },
+    { key: 'contentBgColor', label: '内容区背景色', type: 'color' },
+    { key: 'primaryColor', label: '主色调', type: 'color' },
+    { key: 'textColor', label: '标题文字色', type: 'color' },
+    { key: 'secondaryTextColor', label: '正文文字色', type: 'color' },
+    { key: 'dividerColor', label: '分隔线颜色', type: 'color' },
+    { key: 'linkColor', label: '链接颜色', type: 'color' },
+    { key: 'fontFamily', label: '字体族', type: 'select', options: [
+        { value: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', label: '系统默认字体' },
+        { value: '"Helvetica Neue", Helvetica, Arial, sans-serif', label: 'Helvetica' },
+        { value: '"Microsoft YaHei", "微软雅黑", sans-serif', label: '微软雅黑' },
+        { value: '"PingFang SC", "Hiragino Sans GB", sans-serif', label: '苹方' },
+        { value: 'Georgia, "Times New Roman", Times, serif', label: 'Georgia 衬线' },
+        { value: '"Courier New", Courier, monospace', label: '等宽字体' }
+    ]},
+    { key: 'headingFontSize', label: '标题字号(px)', type: 'number' },
+    { key: 'bodyFontSize', label: '正文字号(px)', type: 'number' },
+    { type: 'group', label: '默认内边距', fields: [
+        { key: 'defaultPaddingTop', label: '上(px)', type: 'number' },
+        { key: 'defaultPaddingRight', label: '右(px)', type: 'number' },
+        { key: 'defaultPaddingBottom', label: '下(px)', type: 'number' },
+        { key: 'defaultPaddingLeft', label: '左(px)', type: 'number' }
+    ]}
+];

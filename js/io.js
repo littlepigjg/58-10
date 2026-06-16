@@ -12,8 +12,8 @@ const IOManager = (() => {
         URL.revokeObjectURL(url);
     }
 
-    function exportHtml(blocks) {
-        const html = TemplateEngine.renderFullHtml(blocks);
+    function exportHtml(blocks, globalConfig) {
+        const html = TemplateEngine.renderFullHtml(blocks, globalConfig);
         const filename = 'email-template-' + Date.now() + '.html';
         triggerDownload(html, filename, 'text/html;charset=utf-8');
     }
@@ -22,7 +22,8 @@ const IOManager = (() => {
         const data = {
             version: '1.0',
             createdAt: new Date().toISOString(),
-            blocks: state.blocks
+            blocks: state.blocks,
+            globalConfig: state.globalConfig
         };
         const json = JSON.stringify(data, null, 2);
         const filename = 'email-template-' + Date.now() + '.json';

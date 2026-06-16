@@ -3,15 +3,29 @@ const PreviewRenderer = (() => {
     let iframeEl = null;
     let containerEl = null;
     let currentView = 'desktop';
+    let currentBlocks = [];
+    let currentGlobalConfig = null;
 
     function init(iframeSelector, containerSelector) {
         iframeEl = document.querySelector(iframeSelector);
         containerEl = document.querySelector(containerSelector);
     }
 
-    function render(blocks) {
+    function render(blocks, globalConfig) {
         if (!iframeEl) return;
-        const html = TemplateEngine.renderFullHtml(blocks);
+        currentBlocks = blocks || currentBlocks;
+        currentGlobalConfig = globalConfig || currentGlobalConfig;
+        const html = TemplateEngine.renderFullHtml(currentBlocks, currentGlobalConfig);
+        const doc = iframeEl.contentDocument || iframeEl.contentWindow.document;
+        doc.open();
+        doc.write(html);
+        doc.close();
+    }
+
+    function updateGlobalConfig(globalConfig) {
+        if (!iframeEl) return;
+        currentGlobalConfig = globalConfig;
+        const html = TemplateEngine.renderFullHtml(currentBlocks, currentGlobalConfig);
         const doc = iframeEl.contentDocument || iframeEl.contentWindow.document;
         doc.open();
         doc.write(html);
@@ -33,6 +47,7 @@ const PreviewRenderer = (() => {
     return {
         init,
         render,
+        updateGlobalConfig,
         setView,
         getView
     };

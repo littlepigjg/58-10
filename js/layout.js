@@ -3,17 +3,38 @@ const LayoutManager = (() => {
     let mainList = null;
     let onChangeCallback = null;
     let onSelectCallback = null;
+    let onGlobalConfigChangeCallback = null;
     let selectedColId = null;
+    let globalConfig = null;
+
+    const DEFAULT_GLOBAL_CONFIG = {
+        backgroundColor: '#f3f4f6',
+        contentBgColor: '#ffffff',
+        primaryColor: '#667eea',
+        textColor: '#1f2937',
+        secondaryTextColor: '#4b5563',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif',
+        headingFontSize: 28,
+        bodyFontSize: 14,
+        defaultPaddingTop: 0,
+        defaultPaddingRight: 20,
+        defaultPaddingBottom: 0,
+        defaultPaddingLeft: 20,
+        dividerColor: '#e5e7eb',
+        linkColor: '#667eea'
+    };
 
     function init(initialState, callbacks) {
         onChangeCallback = callbacks.onChange || (() => {});
         onSelectCallback = callbacks.onSelect || (() => {});
+        onGlobalConfigChangeCallback = callbacks.onGlobalConfigChange || (() => {});
 
         mainList = BlockListManager.createManager(
             initialState.blocks || [],
             onMainListChange
         );
 
+        globalConfig = Object.assign({}, DEFAULT_GLOBAL_CONFIG, initialState.globalConfig || {});
         selectedColId = null;
     }
 
@@ -25,7 +46,8 @@ const LayoutManager = (() => {
         return {
             blocks: mainList.getBlocks(),
             selectedId: mainList.getSelectedId(),
-            selectedColId: selectedColId
+            selectedColId: selectedColId,
+            globalConfig: getGlobalConfig()
         };
     }
 
@@ -33,7 +55,26 @@ const LayoutManager = (() => {
         mainList.setBlocks(newState.blocks || []);
         mainList.setSelectedId(newState.selectedId || null);
         selectedColId = newState.selectedColId || null;
+        globalConfig = Object.assign({}, DEFAULT_GLOBAL_CONFIG, newState.globalConfig || {});
         onChangeCallback(getState());
+    }
+
+    function getGlobalConfig() {
+        return Object.assign({}, globalConfig);
+    }
+
+    function updateGlobalConfig(updates) {
+        globalConfig = Object.assign({}, globalConfig, updates || {});
+        onGlobalConfigChangeCallback(getGlobalConfig());
+    }
+
+    function getDefaultGlobalConfig() {
+        return Object.assign({}, DEFAULT_GLOBAL_CONFIG);
+    }
+
+    function resetGlobalConfig() {
+        globalConfig = Object.assign({}, DEFAULT_GLOBAL_CONFIG);
+        onGlobalConfigChangeCallback(getGlobalConfig());
     }
 
     function selectBlock(blockId, colId) {
@@ -277,6 +318,10 @@ const LayoutManager = (() => {
         findBlockByIdRecursive,
         updateAnyBlock,
         deleteAnyBlock,
-        duplicateAnyBlock
+        duplicateAnyBlock,
+        getGlobalConfig,
+        updateGlobalConfig,
+        getDefaultGlobalConfig,
+        resetGlobalConfig
     };
 })();
